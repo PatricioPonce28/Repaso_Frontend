@@ -8,7 +8,6 @@ const Registro = ({ volverLogin }) => {
     email: '',
     password: ''
   });
-  
   const [error, setError] = useState('');
   const [exito, setExito] = useState('');
   const [cargando, setCargando] = useState(false);
@@ -24,7 +23,7 @@ const Registro = ({ volverLogin }) => {
     setExito('');
 
     try {
-      const response = await fetch('https://backend-repaso-ex-final.onrender.com/api/registro', {
+      const response = await fetch('https://backend-repaso-ex-final.onrender.com/api/usuarios/registro', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -41,7 +40,7 @@ const Registro = ({ volverLogin }) => {
           volverLogin();
         }, 2000);
       } else {
-        setError(data.message || 'Error al registrarse');
+        setError(data.msg || 'Error al registrarse');
       }
     } catch (err) {
       setError('Error de conexión con el servidor');
@@ -116,7 +115,7 @@ const Registro = ({ volverLogin }) => {
           onMouseOver={(e) => e.target.style.transform = 'translateY(-2px)'}
           onMouseOut={(e) => e.target.style.transform = 'translateY(0)'}
         >
-          {cargando ? 'Registrando...' : 'Registrarse'}
+          {cargando ? '⏳ Registrando...' : '🚀 Registrarse'}
         </button>
         
         <p style={estilosBase.link}>

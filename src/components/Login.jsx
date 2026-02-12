@@ -2,10 +2,12 @@ import { useState } from 'react';
 import { estilosBase, colores } from './estilos';
 import Registro from './Registro';
 import Dashboard from './Dashboard';
+import DashboardAdmin from './DashboardAdmin';
 
 const Login = () => {
   const [mostrar, setMostrar] = useState('login');
   const [usuario, setUsuario] = useState(null);
+  const [esAdmin, setEsAdmin] = useState(false);
   const [credentials, setCredentials] = useState({ email: '', password: '' });
   const [error, setError] = useState('');
   const [cargando, setCargando] = useState(false);
@@ -20,7 +22,7 @@ const Login = () => {
     setError('');
 
     try {
-      const response = await fetch('https://backend-repaso-ex-final.onrender.com/api/login', {
+      const response = await fetch('https://backend-repaso-ex-final.onrender.com/api/usuarios/login', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -32,10 +34,16 @@ const Login = () => {
 
       if (response.ok) {
         console.log("Login exitoso:", data);
-        setUsuario(data);
+        setUsuario(data.user);
+        
+        // Verificar si es el admin
+        if (data.user.email === 'mendara2009@gmail.com') {
+          setEsAdmin(true);
+        }
+        
         setMostrar('dashboard');
       } else {
-        setError(data.message || 'Error al iniciar sesión');
+        setError(data.msg || 'Error al iniciar sesión');
       }
     } catch (err) {
       setError('Error de conexión con el servidor');
@@ -47,6 +55,7 @@ const Login = () => {
 
   const cerrarSesion = () => {
     setUsuario(null);
+    setEsAdmin(false);
     setMostrar('login');
   };
 
@@ -55,6 +64,11 @@ const Login = () => {
   }
 
   if (mostrar === 'dashboard') {
+    // Si es admin, mostrar DashboardAdmin
+    if (esAdmin) {
+      return <DashboardAdmin usuario={usuario} cerrarSesion={cerrarSesion} />;
+    }
+    // Si no, mostrar Dashboard normal
     return <Dashboard usuario={usuario} cerrarSesion={cerrarSesion} />;
   }
 
@@ -100,7 +114,7 @@ const Login = () => {
           onMouseOver={(e) => e.target.style.transform = 'translateY(-2px)'}
           onMouseOut={(e) => e.target.style.transform = 'translateY(0)'}
         >
-          {cargando ? 'Cargando...' : '✨ Entrar'}
+          {cargando ? '⏳ Cargando...' : '✨ Entrar'}
         </button>
         
         <p style={estilosBase.link}>
