@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { colores } from './estilos';
+import { API_URL } from '../config'; 
 
 const Registro = ({ volver }) => {
   const [form, setForm] = useState({ nombre: '', apellido: '', email: '', password: '' });
@@ -18,7 +19,7 @@ const Registro = ({ volver }) => {
     setExito('');
 
     try {
-      const response = await fetch('https://backend-repaso-ex-final.onrender.com/api/usuarios/registro', {
+      const response = await fetch(`${API_URL}/api/auth/register`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(form)
