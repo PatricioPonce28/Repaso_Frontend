@@ -7,26 +7,45 @@ const Dashboard = ({ usuario, cerrarSesion }) => {
   const [matriculas, setMatriculas] = useState([]);
   const [showForm, setShowForm] = useState(false);
   const [editando, setEditando] = useState(null);
+  const [mostrarModal, setMostrarModal] = useState(false);
   
   const [formMateria, setFormMateria] = useState({
     nombre: '',
     codigo: '',
     creditos: '',
-    nivel: ''
+    descripcion: ''
   });
 
+  const getHeaders = () => {
+    const headers = { 'Content-Type': 'application/json' };
+    
+    if (usuario) {
+      headers['x-usuario-id'] = usuario._id || usuario.id;
+      headers['x-usuario-nombre'] = usuario.nombre;
+    }
+    
+    return headers;
+  };
+
   useEffect(() => {
-    obtenerMaterias();
-    obtenerMatriculas();
-  }, []);
+    if (usuario) {
+      obtenerMaterias();
+      obtenerMatriculas();
+    }
+  }, [usuario]);
 
   const obtenerMaterias = async () => {
     try {
       const response = await fetch(`${API_URL}/api/materias`, {
-        headers: { 'Content-Type': 'application/json' }
+        headers: getHeaders()
       });
       const data = await response.json();
-      setMaterias(data);
+      
+      if (response.ok) {
+        setMaterias(data);
+      } else {
+        console.error('Error al obtener materias:', data);
+      }
     } catch (err) {
       console.error(err);
     }
@@ -35,10 +54,15 @@ const Dashboard = ({ usuario, cerrarSesion }) => {
   const obtenerMatriculas = async () => {
     try {
       const response = await fetch(`${API_URL}/api/matriculas`, {
-        headers: { 'Content-Type': 'application/json' }
+        headers: getHeaders()
       });
       const data = await response.json();
-      setMatriculas(data);
+      
+      if (response.ok) {
+        setMatriculas(data);
+      } else {
+        console.error('Error al obtener matrículas:', data);
+      }
     } catch (err) {
       console.error(err);
     }
@@ -49,17 +73,18 @@ const Dashboard = ({ usuario, cerrarSesion }) => {
     try {
       const response = await fetch(`${API_URL}/api/materias`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: getHeaders(),
         body: JSON.stringify(formMateria)
       });
 
       if (response.ok) {
         alert('✅ Materia creada');
-        setFormMateria({ nombre: '', codigo: '', creditos: '', nivel: '' });
+        setFormMateria({ nombre: '', codigo: '', creditos: '', descripcion: '' });
         setShowForm(false);
         obtenerMaterias();
       } else {
-        alert('❌ Error al crear materia');
+        const error = await response.json();
+        alert(`❌ Error: ${error.message || 'Error al crear materia'}`);
       }
     } catch (err) {
       alert('❌ Error de conexión');
@@ -71,18 +96,19 @@ const Dashboard = ({ usuario, cerrarSesion }) => {
     try {
       const response = await fetch(`${API_URL}/api/materias/${editando._id}`, {
         method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
+        headers: getHeaders(),
         body: JSON.stringify(formMateria)
       });
 
       if (response.ok) {
         alert('✅ Materia actualizada');
-        setFormMateria({ nombre: '', codigo: '', creditos: '', nivel: '' });
+        setFormMateria({ nombre: '', codigo: '', creditos: '', descripcion: '' });
         setEditando(null);
         setShowForm(false);
         obtenerMaterias();
       } else {
-        alert('❌ Error al actualizar');
+        const error = await response.json();
+        alert(`❌ Error: ${error.message || 'Error al actualizar'}`);
       }
     } catch (err) {
       alert('❌ Error de conexión');
@@ -95,14 +121,15 @@ const Dashboard = ({ usuario, cerrarSesion }) => {
     try {
       const response = await fetch(`${API_URL}/api/materias/${id}`, {
         method: 'DELETE',
-        headers: { 'Content-Type': 'application/json' }
+        headers: getHeaders()
       });
 
       if (response.ok) {
         alert('✅ Materia eliminada');
         obtenerMaterias();
       } else {
-        alert('❌ Error al eliminar');
+        const error = await response.json();
+        alert(`❌ Error: ${error.message || 'Error al eliminar'}`);
       }
     } catch (err) {
       alert('❌ Error de conexión');
@@ -115,36 +142,44 @@ const Dashboard = ({ usuario, cerrarSesion }) => {
       nombre: materia.nombre,
       codigo: materia.codigo,
       creditos: materia.creditos,
-      nivel: materia.nivel
+      descripcion: materia.descripcion || ''
     });
     setShowForm(true);
   };
 
   const cancelarEdicion = () => {
     setEditando(null);
-    setFormMateria({ nombre: '', codigo: '', creditos: '', nivel: '' });
+    setFormMateria({ nombre: '', codigo: '', creditos: '', descripcion: '' });
     setShowForm(false);
   };
 
   const inscribirMateria = async (materiaId) => {
     try {
+      const codigoMatricula = Date.now();
+      
+      const body = {
+        codigo: codigoMatricula,
+        id_estudiante: usuario.estudianteId, // Usar estudianteId
+        id_materia: materiaId,
+        descripcion: 'Matrícula activa'
+      };
+      
       const response = await fetch(`${API_URL}/api/matriculas`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          estudiante_id: usuario._id,
-          materia_id: materiaId
-        })
+        headers: getHeaders(),
+        body: JSON.stringify(body)
       });
 
       if (response.ok) {
         alert('✅ Te inscribiste exitosamente');
         obtenerMatriculas();
       } else {
-        alert('❌ Error al inscribirse');
+        const error = await response.json();
+        alert(`❌ Error: ${error.message || JSON.stringify(error)}`);
       }
     } catch (err) {
       alert('❌ Error de conexión');
+      console.error(err);
     }
   };
 
@@ -152,21 +187,28 @@ const Dashboard = ({ usuario, cerrarSesion }) => {
     try {
       const response = await fetch(`${API_URL}/api/matriculas/${matriculaId}`, {
         method: 'DELETE',
-        headers: { 'Content-Type': 'application/json' }
+        headers: getHeaders()
       });
 
       if (response.ok) {
         alert('❌ Te desinscribiste');
         obtenerMatriculas();
       } else {
-        alert('❌ Error al desinscribirse');
+        const error = await response.json();
+        alert(`❌ Error: ${error.message || 'Error al desinscribirse'}`);
       }
     } catch (err) {
       alert('❌ Error de conexión');
     }
   };
 
-  const misMatriculas = matriculas.filter(m => m.estudiante_id === usuario._id);
+  const misMatriculas = matriculas.filter(m => 
+    m.id_estudiante === usuario?.estudianteId
+  );
+
+  if (!usuario) {
+    return <div>Cargando...</div>;
+  }
 
   return (
     <div style={containerPrincipal}>
@@ -176,9 +218,17 @@ const Dashboard = ({ usuario, cerrarSesion }) => {
           <h1 style={s.title}>📚 Gestión de Materias</h1>
           <p style={s.subtitle}>Bienvenido, {usuario.nombre}</p>
         </div>
-        <button onClick={cerrarSesion} style={{...boton, backgroundColor: colores.error, color: colores.blanco}}>
-          Salir
-        </button>
+        <div style={{display: 'flex', gap: 'clamp(8px, 1vw, 10px)', flexWrap: 'wrap'}}>
+          <button 
+            onClick={() => setMostrarModal(true)} 
+            style={{...boton, backgroundColor: colores.primario, color: colores.blanco}}
+          >
+            👤 Mis Datos
+          </button>
+          <button onClick={cerrarSesion} style={{...boton, backgroundColor: colores.error, color: colores.blanco}}>
+            Salir
+          </button>
+        </div>
       </div>
 
       {/* Botón Agregar Materia */}
@@ -207,6 +257,7 @@ const Dashboard = ({ usuario, cerrarSesion }) => {
                   value={formMateria.nombre} 
                   style={s.input} 
                   required 
+                  maxLength={20}
                 />
               </div>
               <div>
@@ -218,29 +269,29 @@ const Dashboard = ({ usuario, cerrarSesion }) => {
                   value={formMateria.codigo} 
                   style={s.input} 
                   required 
+                  maxLength={20}
                 />
               </div>
               <div>
-                <label style={label}>Créditos *</label>
+                <label style={label}>Créditos</label>
                 <input 
                   name="creditos" 
-                  type="number" 
                   placeholder="4" 
                   onChange={(e) => setFormMateria({...formMateria, creditos: e.target.value})} 
                   value={formMateria.creditos} 
                   style={s.input} 
-                  required 
+                  maxLength={10}
                 />
               </div>
               <div>
-                <label style={label}>Nivel *</label>
+                <label style={label}>Descripción</label>
                 <input 
-                  name="nivel" 
-                  placeholder="Primero" 
-                  onChange={(e) => setFormMateria({...formMateria, nivel: e.target.value})} 
-                  value={formMateria.nivel} 
+                  name="descripcion" 
+                  placeholder="Matemáticas básicas" 
+                  onChange={(e) => setFormMateria({...formMateria, descripcion: e.target.value})} 
+                  value={formMateria.descripcion} 
                   style={s.input} 
-                  required 
+                  maxLength={20}
                 />
               </div>
             </div>
@@ -259,14 +310,14 @@ const Dashboard = ({ usuario, cerrarSesion }) => {
         ) : (
           <div style={gridResponsivo}>
             {misMatriculas.map(matricula => {
-              const materia = materias.find(m => m._id === matricula.materia_id);
+              const materia = materias.find(m => m._id === matricula.id_materia);
               if (!materia) return null;
               return (
                 <div key={matricula._id} style={{...card, backgroundColor: '#f0fdf4', border: '2px solid #86efac'}}>
                   <h4 style={s.nombre}>{materia.nombre}</h4>
                   <p style={s.dato}>📋 {materia.codigo}</p>
-                  <p style={s.dato}>⭐ {materia.creditos} créditos</p>
-                  <p style={s.dato}>📊 Nivel {materia.nivel}</p>
+                  <p style={s.dato}>⭐ {materia.creditos || 'Sin créditos'}</p>
+                  <p style={s.dato}>📝 {materia.descripcion || 'Sin descripción'}</p>
                   <button 
                     onClick={() => desinscribirMateria(matricula._id)}
                     style={{...boton, backgroundColor: colores.error, color: colores.blanco, width: '100%', marginTop: 'clamp(8px, 1.5vw, 12px)'}}
@@ -288,13 +339,13 @@ const Dashboard = ({ usuario, cerrarSesion }) => {
         ) : (
           <div style={gridResponsivo}>
             {materias.map(m => {
-              const estaInscrito = misMatriculas.some(mat => mat.materia_id === m._id);
+              const estaInscrito = misMatriculas.some(mat => mat.id_materia === m._id);
               return (
                 <div key={m._id} style={card}>
                   <h4 style={s.nombre}>{m.nombre}</h4>
                   <p style={s.dato}>📋 {m.codigo}</p>
-                  <p style={s.dato}>⭐ {m.creditos} créditos</p>
-                  <p style={s.dato}>📊 Nivel {m.nivel}</p>
+                  <p style={s.dato}>⭐ {m.creditos || 'Sin créditos'}</p>
+                  <p style={s.dato}>📝 {m.descripcion || 'Sin descripción'}</p>
                   
                   <div style={s.botones}>
                     <button 
@@ -308,7 +359,7 @@ const Dashboard = ({ usuario, cerrarSesion }) => {
                       }}
                       disabled={estaInscrito}
                     >
-                      {estaInscrito ? '✓ Inscrito' : '➕ Inscribirse'}
+                      {estaInscrito ? '✓' : '➕'}
                     </button>
                     
                     <button 
@@ -331,6 +382,30 @@ const Dashboard = ({ usuario, cerrarSesion }) => {
           </div>
         )}
       </div>
+
+      {/* Modal Mis Datos */}
+      {mostrarModal && (
+        <div style={s.modalOverlay} onClick={() => setMostrarModal(false)}>
+          <div style={s.modalContent} onClick={(e) => e.stopPropagation()}>
+            <h3 style={s.modalTitle}>📋 Mis Datos de Estudiante</h3>
+            <div style={s.modalGrid}>
+              <p style={s.modalDato}><strong>Nombre Completo:</strong> {usuario.nombre} {usuario.apellido}</p>
+              <p style={s.modalDato}><strong>Cédula:</strong> {usuario.cedula || 'No registrado'}</p>
+              <p style={s.modalDato}><strong>Email:</strong> {usuario.email}</p>
+              <p style={s.modalDato}><strong>Teléfono:</strong> {usuario.telefono || 'No registrado'}</p>
+              <p style={s.modalDato}><strong>Ciudad:</strong> {usuario.ciudad || 'No registrado'}</p>
+              <p style={s.modalDato}><strong>Dirección:</strong> {usuario.direccion || 'No registrado'}</p>
+              <p style={s.modalDato}><strong>Fecha Nacimiento:</strong> {usuario.fecha_nacimiento || 'No registrado'}</p>
+            </div>
+            <button 
+              onClick={() => setMostrarModal(false)} 
+              style={{...boton, backgroundColor: colores.primario, color: colores.blanco, width: '100%', marginTop: '15px'}}
+            >
+              Cerrar
+            </button>
+          </div>
+        </div>
+      )}
     </div>
   );
 };
@@ -404,6 +479,51 @@ const s = {
     display: 'flex',
     gap: 'clamp(5px, 1vw, 8px)',
     marginTop: 'clamp(8px, 1.5vw, 12px)'
+  },
+  // Estilos del Modal
+  modalOverlay: {
+    position: 'fixed',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    backgroundColor: 'rgba(0,0,0,0.6)',
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    zIndex: 1000,
+    padding: '20px',
+    boxSizing: 'border-box'
+  },
+  modalContent: {
+    backgroundColor: colores.blanco,
+    padding: 'clamp(20px, 3vw, 30px)',
+    borderRadius: '12px',
+    maxWidth: 'min(500px, 90vw)',
+    width: '100%',
+    boxShadow: '0 10px 40px rgba(0,0,0,0.3)',
+    maxHeight: '80vh',
+    overflowY: 'auto'
+  },
+  modalTitle: {
+    margin: '0 0 20px 0',
+    fontSize: 'clamp(1.1rem, 2vw, 1.4rem)',
+    color: colores.texto,
+    fontWeight: '700',
+    textAlign: 'center'
+  },
+  modalGrid: {
+    display: 'grid',
+    gap: '12px'
+  },
+  modalDato: {
+    margin: 0,
+    fontSize: 'clamp(14px, 1.5vw, 15px)',
+    color: colores.texto,
+    padding: '10px',
+    backgroundColor: '#f8fafc',
+    borderRadius: '6px',
+    borderLeft: `4px solid ${colores.primario}`
   }
 };
 
