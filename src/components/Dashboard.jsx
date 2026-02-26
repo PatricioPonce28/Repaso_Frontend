@@ -26,6 +26,46 @@ const Dashboard = ({ usuario, cerrarSesion }) => {
     return headers;
   };
 
+  // Obtener las IDs de materias que YO creé
+  const getMisMateriasIds = () => {
+    const key = `materias_${usuario._id}`;
+    const stored = localStorage.getItem(key);
+    return stored ? JSON.parse(stored) : [];
+  };
+
+  // Obtener las IDs de materias que YO ELIMINÉ (para ocultarlas)
+  const getMateriasEliminadasIds = () => {
+    const key = `materias_eliminadas_${usuario._id}`;
+    const stored = localStorage.getItem(key);
+    return stored ? JSON.parse(stored) : [];
+  };
+
+  // Guardar que YO creé esta materia
+  const agregarMiMateriaId = (materiaId) => {
+    const key = `materias_${usuario._id}`;
+    const misIds = getMisMateriasIds();
+    if (!misIds.includes(materiaId)) {
+      misIds.push(materiaId);
+      localStorage.setItem(key, JSON.stringify(misIds));
+    }
+  };
+
+  // Marcar como eliminada (solo para MI vista)
+  const marcarComoEliminada = (materiaId) => {
+    const key = `materias_eliminadas_${usuario._id}`;
+    const eliminadas = getMateriasEliminadasIds();
+    if (!eliminadas.includes(materiaId)) {
+      eliminadas.push(materiaId);
+      localStorage.setItem(key, JSON.stringify(eliminadas));
+    }
+    
+    // También quitar de mis materias
+    const keyMias = `materias_${usuario._id}`;
+    const misIds = getMisMateriasIds();
+    const nuevosIds = misIds.filter(id => id !== materiaId);
+    localStorage.setItem(keyMias, JSON.stringify(nuevosIds));
+  };
+
   useEffect(() => {
     if (usuario) {
       obtenerMaterias();
@@ -52,24 +92,18 @@ const Dashboard = ({ usuario, cerrarSesion }) => {
   const crearMateria = async (e) => {
     e.preventDefault();
     try {
-      // AGREGAR el ID del usuario al código para identificar quién la creó
-      const codigoConUsuario = `${usuario._id.slice(-6)}-${formMateria.codigo}`;
-      
-      const materiaConUsuario = {
-        ...formMateria,
-        codigo: codigoConUsuario, // Código modificado
-        descripcion: formMateria.descripcion || `Creada por ${usuario.nombre}` // Info en descripción
-      };
-
       const response = await fetch(`${API_URL}/api/materias`, {
         method: 'POST',
         headers: getHeaders(),
-        body: JSON.stringify(materiaConUsuario)
+        body: JSON.stringify(formMateria)
       });
 
       const data = await response.json();
 
       if (response.ok) {
+        const nuevaMateria = data.data || data;
+        agregarMiMateriaId(nuevaMateria._id);
+        
         alert('✅ Materia creada');
         setFormMateria({ nombre: '', codigo: '', creditos: '', descripcion: '' });
         setShowForm(false);
@@ -85,7 +119,6 @@ const Dashboard = ({ usuario, cerrarSesion }) => {
   const actualizarMateria = async (e) => {
     e.preventDefault();
     try {
-      // Mantener el código original (que ya tiene el usuario)
       const response = await fetch(`${API_URL}/api/materias/${editando._id}`, {
         method: 'PUT',
         headers: getHeaders(),
@@ -110,35 +143,17 @@ const Dashboard = ({ usuario, cerrarSesion }) => {
   const eliminarMateria = async (id) => {
     if (!confirm('¿Estás seguro de eliminar esta materia?')) return;
     
-    try {
-      const response = await fetch(`${API_URL}/api/materias/${id}`, {
-        method: 'DELETE',
-        headers: getHeaders()
-      });
-
-      if (response.ok) {
-        alert('✅ Materia eliminada');
-        obtenerMaterias();
-      } else {
-        const error = await response.json();
-        alert(`❌ Error: ${error.message || 'Error al eliminar'}`);
-      }
-    } catch (err) {
-      alert('❌ Error de conexión');
-    }
+    // NO eliminar del backend, solo ocultar para este usuario
+    marcarComoEliminada(id);
+    alert('✅ Materia eliminada de tu vista');
+    obtenerMaterias(); // Refrescar para que se oculte
   };
 
   const editarMateria = (materia) => {
     setEditando(materia);
-    
-    // Quitar el prefijo del usuario del código para mostrarlo limpio
-    const codigoLimpio = materia.codigo.includes('-') 
-      ? materia.codigo.split('-').slice(1).join('-')
-      : materia.codigo;
-    
     setFormMateria({
       nombre: materia.nombre,
-      codigo: codigoLimpio,
+      codigo: materia.codigo,
       creditos: materia.creditos,
       descripcion: materia.descripcion || ''
     });
@@ -151,13 +166,12 @@ const Dashboard = ({ usuario, cerrarSesion }) => {
     setShowForm(false);
   };
 
-  // FILTRAR: Solo materias cuyo código empieza con los últimos 6 chars de mi usuario._id
-  const misPrefijo = usuario._id.slice(-6);
-  const misMaterias = materias.filter(m => m.codigo.startsWith(misPrefijo + '-'));
-
-  console.log("Mi prefijo:", misPrefijo);
-  console.log("Total materias:", materias.length);
-  console.log("Mis materias filtradas:", misMaterias.length);
+  // FILTRAR: Solo materias que YO creé Y que NO he eliminado
+  const misMateriasIds = getMisMateriasIds();
+  const eliminadasIds = getMateriasEliminadasIds();
+  const misMaterias = materias.filter(m => 
+    misMateriasIds.includes(m._id) && !eliminadasIds.includes(m._id)
+  );
 
   if (!usuario) {
     return <div>Cargando...</div>;
@@ -214,7 +228,7 @@ const Dashboard = ({ usuario, cerrarSesion }) => {
                 />
               </div>
               <div>
-                <label style={label}>Código * (ej: MAT101)</label>
+                <label style={label}>Código *</label>
                 <input 
                   name="codigo" 
                   placeholder="MAT101" 
@@ -222,9 +236,8 @@ const Dashboard = ({ usuario, cerrarSesion }) => {
                   value={formMateria.codigo} 
                   style={s.input} 
                   required 
-                  maxLength={13}
+                  maxLength={20}
                 />
-                {!editando && <small style={{color: '#64748b', fontSize: '11px'}}>Se agregará automáticamente un prefijo único</small>}
               </div>
               <div>
                 <label style={label}>Créditos</label>
@@ -263,37 +276,30 @@ const Dashboard = ({ usuario, cerrarSesion }) => {
           <p style={s.vacio}>No has creado materias aún. ¡Crea tu primera materia! 🚀</p>
         ) : (
           <div style={gridResponsivo}>
-            {misMaterias.map(m => {
-              // Mostrar el código sin el prefijo
-              const codigoLimpio = m.codigo.includes('-') 
-                ? m.codigo.split('-').slice(1).join('-')
-                : m.codigo;
-              
-              return (
-                <div key={m._id} style={card}>
-                  <h4 style={s.nombre}>{m.nombre}</h4>
-                  <p style={s.dato}>📋 <strong>Código:</strong> {codigoLimpio}</p>
-                  <p style={s.dato}>⭐ <strong>Créditos:</strong> {m.creditos || 'No especificado'}</p>
-                  <p style={s.dato}>📝 <strong>Descripción:</strong> {m.descripcion || 'Sin descripción'}</p>
+            {misMaterias.map(m => (
+              <div key={m._id} style={card}>
+                <h4 style={s.nombre}>{m.nombre}</h4>
+                <p style={s.dato}>📋 <strong>Código:</strong> {m.codigo}</p>
+                <p style={s.dato}>⭐ <strong>Créditos:</strong> {m.creditos || 'No especificado'}</p>
+                <p style={s.dato}>📝 <strong>Descripción:</strong> {m.descripcion || 'Sin descripción'}</p>
+                
+                <div style={s.botones}>
+                  <button 
+                    onClick={() => editarMateria(m)}
+                    style={{...boton, backgroundColor: '#f59e0b', color: colores.blanco, flex: 1}}
+                  >
+                    ✏️ Editar
+                  </button>
                   
-                  <div style={s.botones}>
-                    <button 
-                      onClick={() => editarMateria(m)}
-                      style={{...boton, backgroundColor: '#f59e0b', color: colores.blanco, flex: 1}}
-                    >
-                      ✏️ Editar
-                    </button>
-                    
-                    <button 
-                      onClick={() => eliminarMateria(m._id)}
-                      style={{...boton, backgroundColor: colores.error, color: colores.blanco, flex: 1}}
-                    >
-                      🗑️ Eliminar
-                    </button>
-                  </div>
+                  <button 
+                    onClick={() => eliminarMateria(m._id)}
+                    style={{...boton, backgroundColor: colores.error, color: colores.blanco, flex: 1}}
+                  >
+                    🗑️ Eliminar
+                  </button>
                 </div>
-              );
-            })}
+              </div>
+            ))}
           </div>
         )}
       </div>
