@@ -69,7 +69,7 @@ const Login = () => {
       if (estudiante) {
         // Guardar TODO: datos del usuario Y del estudiante
         const usuarioCompleto = {
-          _id: data.user?._id || data._id,
+          _id: data.usuario?.id,
           nombre: estudiante.nombre,          // Del estudiante
           apellido: estudiante.apellido,      // Del estudiante
           email: estudiante.email,            // Del estudiante
@@ -82,6 +82,8 @@ const Login = () => {
         };
         
         console.log("Usuario completo a guardar:", usuarioCompleto);
+        console.log('data completa del login:', data);
+        console.log('_id que se va a guardar:', data.user?._id || data._id);
         
         setUsuario(usuarioCompleto);
         localStorage.setItem('usuario', JSON.stringify(usuarioCompleto));
