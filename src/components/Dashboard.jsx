@@ -3,7 +3,9 @@ import { colores, containerPrincipal, header, gridResponsivo, card, boton, label
 import { API_URL } from '../config';
 
 const Dashboard = ({ usuario, cerrarSesion }) => {
+  // keep track of which materias the user has "inscrito" locally
   const [materias, setMaterias] = useState([]);
+  const [inscritos, setInscritos] = useState([]); // array of materia ids
   const [showForm, setShowForm] = useState(false);
   const [editando, setEditando] = useState(null);
   const [mostrarModal, setMostrarModal] = useState(false);
@@ -128,6 +130,18 @@ const Dashboard = ({ usuario, cerrarSesion }) => {
     setShowForm(false);
   };
 
+  // local toggle of inscripción status
+  const toggleInscripcion = (materiaId) => {
+    if (inscritos.includes(materiaId)) {
+      setInscritos(inscritos.filter(id => id !== materiaId));
+      alert('❌ No inscrito');
+    } else {
+      setInscritos([...inscritos, materiaId]);
+      alert('✅ Inscrito');
+    }
+  };
+
+
   if (!usuario) return <div>Cargando...</div>;
 
   return (
@@ -243,15 +257,27 @@ const Dashboard = ({ usuario, cerrarSesion }) => {
                 <div style={s.botones}>
                   <button
                     onClick={() => editarMateria(m)}
-                    style={{ ...boton, backgroundColor: '#f59e0b', color: colores.blanco, flex: 1 }}
+                    style={{ ...boton, backgroundColor: '#f59e0b', color: colores.blanco, flex: '1 0 0' }}
                   >
                     ✏️ Editar
                   </button>
                   <button
                     onClick={() => eliminarMateria(m._id)}
-                    style={{ ...boton, backgroundColor: colores.error, color: colores.blanco, flex: 1 }}
+                    style={{ ...boton, backgroundColor: colores.error, color: colores.blanco, flex: '1 0 0' }}
                   >
                     🗑️ Eliminar
+                  </button>
+                  <button
+                    onClick={() => toggleInscripcion(m._id)}
+                    style={{
+                      ...boton,
+                      backgroundColor: inscritos.includes(m._id) ? colores.exito : colores.error,
+                      color: colores.blanco,
+                      flex: '1 0 0',
+                      whiteSpace: 'nowrap'
+                    }}
+                  >
+                    {inscritos.includes(m._id) ? '✅ Inscrito' : '❌ No inscrito'}
                   </button>
                 </div>
               </div>
@@ -298,7 +324,7 @@ const s = {
   formCard: { backgroundColor: colores.blanco, padding: 'clamp(15px, 2.5vw, 25px)', borderRadius: 'clamp(8px, 1.5vw, 12px)', marginBottom: 'clamp(12px, 2vw, 18px)', boxShadow: '0 2px 10px rgba(0,0,0,0.08)', boxSizing: 'border-box' },
   formTitulo: { margin: '0 0 clamp(12px, 2vw, 18px) 0', fontSize: 'clamp(1rem, 2vw, 1.2rem)', color: colores.texto, fontWeight: '600' },
   input: { padding: 'clamp(10px, 2vw, 12px)', borderRadius: 'clamp(6px, 1vw, 8px)', border: '2px solid #e2e8f0', fontSize: 'clamp(13px, 1.5vw, 15px)', width: '100%', boxSizing: 'border-box' },
-  botones: { display: 'flex', gap: 'clamp(8px, 1.5vw, 12px)', marginTop: 'clamp(12px, 2vw, 15px)' },
+  botones: { display: 'flex', flexWrap: 'wrap', gap: 'clamp(8px, 1.5vw, 12px)', marginTop: 'clamp(12px, 2vw, 15px)' },
   errorBox: { padding: '12px', backgroundColor: '#fee2e2', color: colores.error, borderRadius: '8px', marginBottom: '15px', borderLeft: `4px solid ${colores.error}`, fontSize: 'clamp(13px, 1.5vw, 14px)' },
   modalOverlay: { position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(0,0,0,0.6)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000, padding: '20px', boxSizing: 'border-box' },
   modalContent: { backgroundColor: colores.blanco, padding: 'clamp(20px, 3vw, 30px)', borderRadius: '12px', maxWidth: 'min(500px, 90vw)', width: '100%', boxShadow: '0 10px 40px rgba(0,0,0,0.3)', maxHeight: '80vh', overflowY: 'auto' },
