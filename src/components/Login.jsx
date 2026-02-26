@@ -11,18 +11,15 @@ const Login = () => {
   const [error, setError] = useState('');
   const [cargando, setCargando] = useState(false);
 
-  // ARREGLADO: Verificar si hay usuario guardado al cargar
   useEffect(() => {
     try {
       const usuarioGuardado = localStorage.getItem('usuario');
-      // Solo parsear si existe y no es "undefined"
       if (usuarioGuardado && usuarioGuardado !== 'undefined' && usuarioGuardado !== 'null') {
         const usuarioParseado = JSON.parse(usuarioGuardado);
         setUsuario(usuarioParseado);
         setVista('dashboard');
       }
     } catch (error) {
-      // Si hay error al parsear, limpiar localStorage
       console.error('Error al recuperar usuario:', error);
       localStorage.removeItem('usuario');
     }
@@ -32,64 +29,73 @@ const Login = () => {
     setForm({ ...form, [e.target.name]: e.target.value });
   };
 
-const handleSubmit = async (e) => {
-  e.preventDefault();
-  setCargando(true);
-  setError('');
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    setCargando(true);
+    setError('');
 
-  try {
-    // 1. Login de usuario
-    const response = await fetch(`${API_URL}/api/auth/login`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(form)
-    });
+    try {
+      // 1. Login de usuario
+      const response = await fetch(`${API_URL}/api/auth/login`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(form)
+      });
 
-    const data = await response.json();
+      const data = await response.json();
+      console.log("Respuesta login completa:", data);
 
-    if (!response.ok) {
-      setError(data.msg || data.message || 'Error al iniciar sesión');
-      setCargando(false);
-      return;
-    }
-
-    // 2. Buscar el estudiante por email
-    const responseEst = await fetch(`${API_URL}/api/estudiantes`, {
-      headers: { 
-        'Content-Type': 'application/json',
-        'x-usuario-id': data.user?._id || data._id,
-        'x-usuario-nombre': data.user?.nombre || data.nombre
+      if (!response.ok) {
+        setError(data.msg || data.message || 'Error al iniciar sesión');
+        setCargando(false);
+        return;
       }
-    });
 
-    const estudiantes = await responseEst.json();
-    const estudiante = estudiantes.find(e => e.email === form.email);
+      // 2. Buscar el estudiante por email
+      const responseEst = await fetch(`${API_URL}/api/estudiantes`, {
+        headers: { 
+          'Content-Type': 'application/json',
+          'x-usuario-id': data.user?._id || data._id,
+          'x-usuario-nombre': data.user?.nombre || data.nombre
+        }
+      });
 
-    if (estudiante) {
-      // Guardar el estudiante completo
-      const usuarioCompleto = {
-        ...data.user,
-        estudianteId: estudiante._id,
-        cedula: estudiante.cedula,
-        telefono: estudiante.telefono,
-        ciudad: estudiante.ciudad,
-        direccion: estudiante.direccion,
-        fecha_nacimiento: estudiante.fecha_nacimiento
-      };
+      const estudiantes = await responseEst.json();
+      console.log("Estudiantes obtenidos:", estudiantes);
       
-      setUsuario(usuarioCompleto);
-      localStorage.setItem('usuario', JSON.stringify(usuarioCompleto));
-      setVista('dashboard');
-    } else {
-      setError('No se encontró información de estudiante');
+      const estudiante = estudiantes.find(e => e.email === form.email);
+      console.log("Mi estudiante encontrado:", estudiante);
+
+      if (estudiante) {
+        // Guardar TODO: datos del usuario Y del estudiante
+        const usuarioCompleto = {
+          _id: data.user?._id || data._id,
+          nombre: estudiante.nombre,          // Del estudiante
+          apellido: estudiante.apellido,      // Del estudiante
+          email: estudiante.email,            // Del estudiante
+          estudianteId: estudiante._id,
+          cedula: estudiante.cedula,
+          telefono: estudiante.telefono,
+          ciudad: estudiante.ciudad,
+          direccion: estudiante.direccion,
+          fecha_nacimiento: estudiante.fecha_nacimiento
+        };
+        
+        console.log("Usuario completo a guardar:", usuarioCompleto);
+        
+        setUsuario(usuarioCompleto);
+        localStorage.setItem('usuario', JSON.stringify(usuarioCompleto));
+        setVista('dashboard');
+      } else {
+        setError('No se encontró información de estudiante. Por favor regístrate primero.');
+      }
+    } catch (err) {
+      setError('Error de conexión');
+      console.error(err);
+    } finally {
+      setCargando(false);
     }
-  } catch (err) {
-    setError('Error de conexión');
-    console.error(err);
-  } finally {
-    setCargando(false);
-  }
-};
+  };
 
   const cerrarSesion = () => {
     setUsuario(null);
